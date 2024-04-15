@@ -8,7 +8,7 @@ enum class State(state: String) {
 class Cell() {
     var x = 0
     var y = 0
-    private var symbol = "~"
+    var symbol = "~"
 
     constructor(x: Int, y: Int, symbol: String) : this() {
         this.x = x
@@ -24,12 +24,12 @@ class Cell() {
 class Boat(val name: String, val size: Int) {
     private var state = State.GOOD
 
-    val cells = List(size) { Cell() }
+    var cells = List(size) { Cell() }
 }
 
 class Game {
-    private val boats = listOf(Boat("Aircraft Carrier", 5),Boat("Battleship", 4),Boat("Cruiser", 3),
-        Boat("Submarine", 3),Boat("Destroyer", 2)
+    private val boats = listOf(Boat("Aircraft Carrier", 5),Boat("Battleship", 4),Boat("Submarine", 3),
+        Boat("Cruiser", 3),Boat("Destroyer", 2)
     )
 
     private val board = List(10) { row ->
@@ -38,29 +38,26 @@ class Game {
         }
     }
 
-    fun play() {
+    init {
         printBoard()
-        placeBoats()
-    }
-
-    private fun placeBoats() {
         for (boat in boats) {
             var boatPlaced = false
-            var coordinates = println("Enter the coordinates of the ${boat.name} (${boat.size} cells):").run { readln() }
+            var coordinates = println("Enter the coordinates of the ${boat.name} (${boat.size} cells):\n").run { readln() }
+            println()
             while (!boatPlaced) {
                 val validCoordinate = checkCoordinates(coordinates, boat)
-                 if (validCoordinate) {
-                     boatPlaced = validCoordinate
-                 } else {
-                     coordinates = println("Try again:").run { readln() }
-                 }
+                if (validCoordinate) {
+                    boatPlaced = true
+                } else {
+                    coordinates = println("Try again:\n").run { readln() }
+                }
             }
-
         }
+
     }
 
     private fun checkCoordinates(coordinate: String, boat: Boat): Boolean {
-        val coordinatedRegex = Regex("""[A-J]([1-9|10]) [A-J]([1-9|10])""")
+        val coordinatedRegex = Regex("""[A-J]([1-9]|10) [A-J]([1-9]|10)""")
         val areCoordinateGood = coordinatedRegex.matches(coordinate.trim())
 
         val (startCell, endCell) = if (areCoordinateGood) createCoordinate(coordinate) else listOf(Cell(), Cell())
@@ -75,57 +72,84 @@ class Game {
                 false
             }
             else -> {
-                createBoatCoordinates(startCell, endCell)
-                true
+                val boatCells = createBoatCoordinates(startCell, endCell)
+                when {
+                    !checkBoatCoordinateAreEmpty(boatCells) -> false
+                    boatCells.size != boat.size -> {
+                        print("Error: wrong length of the ${boat.name}!")
+                        false
+                    }
+                    else -> {
+                        placeBoat(boat, boatCells)
+                        true
+                    }
+                }
             }
         }
     }
 
     private fun createCoordinate(coordinate: String): List<Cell> {
-        return coordinate.split(" ").map { Cell(it.first().code - 65, it.takeLast(1).toInt(), "O" ) }
+        return coordinate.split(" ").map { Cell(it.first().code - 65, it.drop(1).toInt() - 1, "O" ) }
     }
 
-    private fun createBoatCoordinates(startCell: Cell, endCell: Cell) {
-        if (startCell.x == endCell.x) {
-            horizontalBoat(startCell, endCell)
+    private fun createBoatCoordinates(startCell: Cell, endCell: Cell): MutableList<Pair<Int, Int>> {
+        return if (startCell.x == endCell.x) createBoat(startCell, endCell, true) else createBoat(startCell, endCell, false)
+    }
+
+    private fun createBoat(startCell: Cell, endCell: Cell, isHorizontal: Boolean): MutableList<Pair<Int, Int>> {
+        val listCellCoordinates = mutableListOf<Pair<Int, Int>>()
+        val min = if (isHorizontal) minOf(startCell.y, endCell.y) else minOf(startCell.x, endCell.x)
+        val max = if (isHorizontal) maxOf(startCell.y, endCell.y) else maxOf(startCell.x, endCell.x)
+        val startX = startCell.x
+        val startY = startCell.y
+
+        if (isHorizontal) {
+            for (y in min..max) listCellCoordinates.add(Pair(startX, y))
         } else {
-            println()
+            for (x in min..max) listCellCoordinates.add(Pair(x, startY))
         }
 
-
-    }
-
-    private fun horizontalBoat(startCell: Cell, endCell: Cell): MutableList<Pair<Int, Int>> {
-        val listCellCoordinates = mutableListOf<Pair<Int, Int>>()
-        val yMin = minOf(startCell.y, endCell.y)
-        val yMax = maxOf(startCell.y, endCell.y)
-        val x = startCell.x
-
-        for (y in yMin..yMax) listCellCoordinates.add(Pair(x, y))
-
         return listCellCoordinates
     }
 
-    private fun verticalBoat(startCell: Cell, endCell: Cell): MutableList<Pair<Int, Int>> {
-        val listCellCoordinates = mutableListOf<Pair<Int, Int>>()
-        val xMin = minOf(startCell.x, endCell.x)
-        val xMax = maxOf(startCell.x, endCell.x)
-        val y = startCell.y
-
-        for (x in xMin..xMax) listCellCoordinates.add(Pair(x, y))
-
-        return listCellCoordinates
+    private fun checkBoatCoordinateAreEmpty(coordinates: MutableList<Pair<Int, Int>> ): Boolean {
+        for (coordinate in coordinates) {
+            for (i in -1..1) {
+                for (j in -1..1) {
+                    try {
+                        if (board[coordinate.first + i][coordinate.second + j].symbol != "~") {
+                            print("Error: the boat can’t be on or near an another boat!")
+                            return false
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        }
+        return true
     }
+
+    private fun placeBoat(boat: Boat, coordinates: MutableList<Pair<Int, Int>>) {
+        val index = boats.indexOf(boat)
+        boats[index].cells = coordinates.toList().map { Cell(it.first, it.second, "O") }
+        for (coordinate in coordinates) {
+            board[coordinate.first][coordinate.second].symbol = "O"
+        }
+        println()
+        printBoard()
+    }
+
+
 
     private fun printBoard() {
         println("  1 2 3 4 5 6 7 8 9 10")
         for (i in board.indices) {
             println("${(i + 65).toChar()} ${board[i].joinToString(" ")}")
         }
+        println()
     }
 }
 
 fun main() {
-    val myGame = Game()
-    myGame.play()
+    Game()
 }
