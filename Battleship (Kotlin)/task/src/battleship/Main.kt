@@ -5,20 +5,26 @@ enum class State(state: String) {
     DESTROYED("Destroyed")
 }
 
+enum class Symbol(val value: String, val message: String) {
+    Empty("~",""),
+    Full("O", ""),
+    Missed("M", "You missed!"),
+    Touched("X", "You hit a ship!")
+}
+
 class Cell() {
     var x = 0
     var y = 0
-    var symbol = "~"
+    var symbol = Symbol.Empty
+    var hiddenSymbol = Symbol.Empty
 
-    constructor(x: Int, y: Int, symbol: String) : this() {
+    constructor(x: Int, y: Int, symbol: Symbol) : this() {
         this.x = x
         this.y = y
-        this.symbol = symbol
+        this.hiddenSymbol = symbol
     }
 
-    override fun toString(): String {
-        return this.symbol
-    }
+    override fun toString() = this.symbol.value
 }
 
 class Boat(val name: String, val size: Int) {
@@ -34,7 +40,7 @@ class Game {
 
     private val board = List(10) { row ->
         List(10) { column ->
-            Cell(row, column, "~")
+            Cell(row, column, Symbol.Empty)
         }
     }
 
@@ -53,7 +59,7 @@ class Game {
                 }
             }
         }
-
+        play()
     }
 
     private fun checkCoordinates(coordinate: String, boat: Boat): Boolean {
@@ -89,7 +95,7 @@ class Game {
     }
 
     private fun createCoordinate(coordinate: String): List<Cell> {
-        return coordinate.split(" ").map { Cell(it.first().code - 65, it.drop(1).toInt() - 1, "O" ) }
+        return coordinate.split(" ").map { Cell(it.first().code - 65, it.drop(1).toInt() - 1, Symbol.Full ) }
     }
 
     private fun createBoatCoordinates(startCell: Cell, endCell: Cell): MutableList<Pair<Int, Int>> {
@@ -117,7 +123,7 @@ class Game {
             for (i in -1..1) {
                 for (j in -1..1) {
                     try {
-                        if (board[coordinate.first + i][coordinate.second + j].symbol != "~") {
+                        if (board[coordinate.first + i][coordinate.second + j].symbol != Symbol.Empty) {
                             print("Error: the boat can’t be on or near an another boat!")
                             return false
                         }
@@ -131,11 +137,64 @@ class Game {
 
     private fun placeBoat(boat: Boat, coordinates: MutableList<Pair<Int, Int>>) {
         val index = boats.indexOf(boat)
-        boats[index].cells = coordinates.toList().map { Cell(it.first, it.second, "O") }
+        boats[index].cells = coordinates.toList().map { Cell(it.first, it.second, Symbol.Full) }
         for (coordinate in coordinates) {
-            board[coordinate.first][coordinate.second].symbol = "O"
+            board[coordinate.first][coordinate.second].symbol = Symbol.Full
+            board[coordinate.first][coordinate.second].hiddenSymbol = Symbol.Full
         }
         println()
+        printBoard()
+    }
+
+
+
+    private fun play() {
+        var shotTaken = false
+        println("The game starts!\n")
+        hideBoats()
+        var target = println("Take a shot!\n").run { readln() }
+        while (!shotTaken) {
+            if (shot(target)) {
+                shotTaken = true
+            } else {
+                target = println("Try again:\n").run { readln() }
+            }
+        }
+    }
+
+    private fun shot(target: String): Boolean {
+        val targetRegex = Regex("""[A-J]([1-9]|10)""")
+        return when {
+            !targetRegex.matches(target) -> {
+                print("\nError: you entered the wrong coordinates!")
+                false
+            }
+            else -> {
+                val cell = createCoordinate(target).first()
+                val symbol = board[cell.x][cell.y].hiddenSymbol
+                 if (symbol == Symbol.Empty) {
+                     board[cell.x][cell.y].symbol =  Symbol.Missed
+                     board[cell.x][cell.y].hiddenSymbol =  Symbol.Missed
+                 } else {
+                     board[cell.x][cell.y].symbol =  Symbol.Touched
+                     board[cell.x][cell.y].hiddenSymbol =  Symbol.Touched
+                 }
+                printBoard()
+                println(board[cell.x][cell.y].symbol.message)
+                println()
+                showBoats()
+                true
+            }
+        }
+    }
+
+    private fun hideBoats() {
+        board.flatten().forEach { it.symbol = Symbol.Empty }
+        printBoard()
+    }
+
+    private fun showBoats() {
+        board.flatten().forEach { it.symbol = it.hiddenSymbol }
         printBoard()
     }
 
