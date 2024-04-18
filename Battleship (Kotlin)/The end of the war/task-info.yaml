@@ -366,6 +366,21 @@ files:
           }
       }
     learner_created: false
+  - name: src/battleship/Cell.kt
+    visible: true
+    learner_created: true
+  - name: src/battleship/Boat.kt
+    visible: true
+    learner_created: true
+  - name: src/battleship/Player.kt
+    visible: true
+    learner_created: true
+  - name: src/battleship/GamerInterface.kt
+    visible: true
+    learner_created: true
 feedback_link: https://hyperskill.org/learn/step/30258#comment
-status: Unchecked
+status: Solved
+feedback:
+  message: Congratulations!
+  time: "Thu, 18 Apr 2024 07:07:24 UTC"
 record: 4
